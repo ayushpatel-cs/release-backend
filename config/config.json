@@ -1,23 +1,9 @@
 {
   "development": {
-    "username": "root",
-    "password": null,
-    "database": "database_development",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
-  },
-  "test": {
-    "username": "root",
-    "password": null,
-    "database": "database_test",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
-  },
-  "production": {
-    "username": "root",
-    "password": null,
-    "database": "database_production",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
+    "username": "doadmin",
+    "password": "AVNS_lPN3nJVN7T2JxaEgHgU",
+    "database": "defaultdb",
+    "host": "db-postgresql-nyc3-74105-do-user-6209446-0.e.db.ondigitalocean.com",
+    "dialect": "postgres"
   }
 }
