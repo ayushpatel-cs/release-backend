@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { Pool } = require('pg');
+const { Sequelize } = require('sequelize');
+const db = require('./models');
 
 // Initialize Express
 const app = express();
@@ -8,35 +9,19 @@ const app = express();
 // Middleware
 app.use(bodyParser.json());
 
-// Set up PostgreSQL connection using your DigitalOcean credentials
-const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
-    ssl: {
-      rejectUnauthorized: false, // Important for connecting to DigitalOcean
-    },
-  });
+// Sync Sequelize Models with Database
+db.sequelize.sync().then(() => {
+  console.log('Database & tables created!');
+});
 
-// Helper function for querying the database
-const db = {
-  query: (text, params) => pool.query(text, params),
-};
 // ------------------------ API ROUTES ------------------------ //
 
 // Create User
 app.post('/users', async (req, res) => {
   const { name, email, password_hash, role } = req.body;
   try {
-    const query = `
-      INSERT INTO Users (name, email, password_hash, role)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *;
-    `;
-    const { rows } = await db.query(query, [name, email, password_hash, role || 'user']);
-    res.status(201).json(rows[0]);
+    const user = await db.User.create({ name, email, password_hash, role: role || 'user' });
+    res.status(201).json(user);
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server Error');
@@ -48,14 +33,12 @@ app.put('/users/:id', async (req, res) => {
   const { id } = req.params;
   const { name, email, password_hash, profile_picture_url, role } = req.body;
   try {
-    const query = `
-      UPDATE Users 
-      SET name = $1, email = $2, password_hash = $3, profile_picture_url = $4, role = $5
-      WHERE id = $6
-      RETURNING *;
-    `;
-    const { rows } = await db.query(query, [name, email, password_hash, profile_picture_url, role, id]);
-    res.status(200).json(rows[0]);
+    const user = await db.User.findByPk(id);
+    if (!user) {
+      return res.status(404).send('User not found');
+    }
+    await user.update({ name, email, password_hash, profile_picture_url, role });
+    res.status(200).json(user);
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server Error');
@@ -65,119 +48,115 @@ app.put('/users/:id', async (req, res) => {
 // Get All Listings (with pagination and sorting/filtering)
 app.get('/listings', async (req, res) => {
   const { page = 1, limit = 10, sort_by = 'date_posted', order = 'DESC', price_min, price_max, city, state } = req.query;
-
   const offset = (page - 1) * limit;
-  let query = `SELECT * FROM Listings WHERE status = 'active'`;
-  const params = [];
+  const whereClause = { status: 'active' };
 
-  // Add filters dynamically
-  if (price_min) {
-    params.push(price_min);
-    query += ` AND price >= $${params.length}`;
-  }
+     // Add dynamic filters
+     if (price_min) whereClause.price = { [db.Sequelize.Op.gte]: price_min };
+     if (price_max) whereClause.price = { ...whereClause.price, [db.Sequelize.Op.lte]: price_max };
+     if (city) whereClause.city = city;
+     if (state) whereClause.state = state;
+  
+     try {
+       const listings = await db.Listing.findAndCountAll({
+         where: whereClause,
+         limit: parseInt(limit),
+         offset: offset,
+         order: [[sort_by, order.toUpperCase()]],
+       });
+       res.json({
+         totalPages: Math.ceil(listings.count / limit),
+         currentPage: parseInt(page),
+         listings: listings.rows,
+       });
+     } catch (error) {
+       console.error(error.message);
+       res.status(500).send('Server Error');
+     }
+  });
+  
 
-  if (price_max) {
-    params.push(price_max);
-    query += ` AND price <= $${params.length}`;
-  }
-
-  if (city) {
-    params.push(city);
-    query += ` AND city = $${params.length}`;
-  }
-
-  if (state) {
-    params.push(state);
-    query += ` AND state = $${params.length}`;
-  }
-
-  query += ` ORDER BY ${sort_by} ${order} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-  params.push(limit, offset);
-
-  try {
-    const { rows } = await db.query(query, params);
-    res.json(rows);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
-  }
-});
-
-// Create a New Listing
-app.post('/listings', async (req, res) => {
-  const { user_id, title, description, price, address, city, state, zip_code, available_from, available_to } = req.body;
-  try {
-    const query = `
-      INSERT INTO Listings (user_id, title, description, price, address, city, state, zip_code, available_from, available_to)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *;
-    `;
-    const { rows } = await db.query(query, [user_id, title, description, price, address, city, state, zip_code, available_from, available_to]);
-    res.status(201).json(rows[0]);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
-  }
-});
-
-// Get Listing Details by ID
-app.get('/listings/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const { rows } = await db.query('SELECT * FROM Listings WHERE id = $1 AND status = $2', [id, 'active']);
-    if (rows.length === 0) {
-      return res.status(404).send('Listing not found');
+  app.post('/listings', async (req, res) => {
+    const { user_id, title, description, price, address, city, state, zip_code, available_from, available_to } = req.body;
+    try {
+      const listing = await db.Listing.create({
+        user_id,
+        title,
+        description,
+        price,
+        address,
+        city,
+        state,
+        zip_code,
+        available_from,
+        available_to,
+      });
+      res.status(201).json(listing);
+    } catch (error) {
+      console.error(error.message);
+      res.status(500).send('Server Error');
     }
-    res.json(rows[0]);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
-  }
-});
+  });
+  
 
-// Delete a Listing
-app.delete('/listings/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const query = `
-      UPDATE Listings 
-      SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP 
-      WHERE id = $1
-      RETURNING *;
-    `;
-    const { rows } = await db.query(query, [id]);
-    if (rows.length === 0) {
-      return res.status(404).send('Listing not found');
+  app.get('/listings/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+      const listing = await db.Listing.findOne({ where: { id, status: 'active' } });
+      if (!listing) {
+        return res.status(404).send('Listing not found');
+      }
+      res.json(listing);
+    } catch (error) {
+      console.error(error.message);
+      res.status(500).send('Server Error');
     }
-    res.json(rows[0]);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
-  }
-});
+  });
+  
 
-// Update a Listing
-app.put('/listings/:id', async (req, res) => {
-  const { id } = req.params;
-  const { title, description, price, address, city, state, zip_code, available_from, available_to } = req.body;
-  try {
-    const query = `
-      UPDATE Listings 
-      SET title = $1, description = $2, price = $3, address = $4, city = $5, state = $6, zip_code = $7, available_from = $8, available_to = $9
-      WHERE id = $10 AND status = 'active'
-      RETURNING *;
-    `;
-    const { rows } = await db.query(query, [title, description, price, address, city, state, zip_code, available_from, available_to, id]);
-    if (rows.length === 0) {
-      return res.status(404).send('Listing not found');
+  app.delete('/listings/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+      const listing = await db.Listing.findByPk(id);
+      if (!listing || listing.status === 'deleted') {
+        return res.status(404).send('Listing not found');
+      }
+      await listing.update({ status: 'deleted', deleted_at: new Date() });
+      res.json(listing);
+    } catch (error) {
+      console.error(error.message);
+      res.status(500).send('Server Error');
     }
-    res.json(rows[0]);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
-  }
-});
+  });
+  
 
+  app.put('/listings/:id', async (req, res) => {
+    const { id } = req.params;
+    const { title, description, price, address, city, state, zip_code, available_from, available_to } = req.body;
+    try {
+      const listing = await db.Listing.findByPk(id);
+      if (!listing || listing.status === 'deleted') {
+        return res.status(404).send('Listing not found');
+      }
+      await listing.update({
+        title,
+        description,
+        price,
+        address,
+        city,
+        state,
+        zip_code,
+        available_from,
+        available_to,
+      });
+      res.json(listing);
+    } catch (error) {
+      console.error(error.message);
+      res.status(500).send('Server Error');
+    }
+  });
+
+  
 // ------------------------ END OF API ROUTES ------------------------ //
 
 // Define the port for the server to listen on
