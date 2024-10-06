@@ -4,6 +4,13 @@
     "password": "AVNS_lPN3nJVN7T2JxaEgHgU",
     "database": "defaultdb",
     "host": "db-postgresql-nyc3-74105-do-user-6209446-0.e.db.ondigitalocean.com",
-    "dialect": "postgres"
+    "port": 25060,
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
   }
 }
