@@ -10,15 +10,15 @@ app.use(bodyParser.json());
 
 // Set up PostgreSQL connection using your DigitalOcean credentials
 const pool = new Pool({
-  user: 'doadmin',
-  host: 'db-postgresql-nyc3-74105-do-user-6209446-0.e.db.ondigitalocean.com',
-  database: 'defaultdb',
-  password: 'AVNS_lPN3nJVN7T2JxaEgHgU',
-  port: 25060,
-  ssl: {
-    rejectUnauthorized: false, // Required for DigitalOcean
-  },
-});
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+    ssl: {
+      rejectUnauthorized: false, // Important for connecting to DigitalOcean
+    },
+  });
 
 // Helper function for querying the database
 const db = {
