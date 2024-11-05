@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Property, User, Bid, PropertyImage } = require('../models');
+const { Property, User, Bid, PropertyImage, sequelize, Sequelize: { Op } } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadPropertyImages } = require('../utils/upload');
 

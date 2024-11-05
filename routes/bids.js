@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Bid, Property, User } = require('../models');
+const { Bid, Property, User, Sequelize: { Op } } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 
 // Place new bid
