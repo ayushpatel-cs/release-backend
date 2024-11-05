@@ -10,28 +10,18 @@ const config = require(__dirname + '/../config/config.json')[env];
 const db = {};
 
 // Create Sequelize instance
-let sequelize;
-if (config.use_env_variable) {
-  sequelize = new Sequelize(process.env[config.use_env_variable], config);
-} else {
-  sequelize = new Sequelize(
-    config.database,
-    config.username,
-    config.password,
-    {
-      ...config,
-      host: config.host,
-      dialect: 'postgres',
-      logging: false,
-      pool: {
-        max: 5,
-        min: 0,
-        acquire: 30000,
-        idle: 10000
-      }
-    }
-  );
-}
+let sequelize = new Sequelize(
+  config.database,
+  config.username,
+  config.password,
+  {
+    host: config.host,
+    port: config.port,
+    dialect: 'postgres',
+    dialectOptions: config.dialectOptions,
+    logging: console.log
+  }
+);
 
 // Load all models
 fs

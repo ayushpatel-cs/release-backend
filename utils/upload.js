@@ -29,18 +29,18 @@ const localStorageConfig = multer.diskStorage({
 });
 
 // S3 storage configuration
-const s3StorageConfig = multerS3({
-  s3: s3,
-  bucket: process.env.AWS_S3_BUCKET,
-  acl: 'public-read',
-  metadata: (req, file, cb) => {
-    cb(null, { fieldName: file.fieldname });
-  },
-  key: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `${file.fieldname}/${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
+// const s3StorageConfig = multerS3({
+//   s3: s3,
+//   bucket: process.env.AWS_S3_BUCKET,
+//   acl: 'public-read',
+//   metadata: (req, file, cb) => {
+//     cb(null, { fieldName: file.fieldname });
+//   },
+//   key: (req, file, cb) => {
+//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//     cb(null, `${file.fieldname}/${uniqueSuffix}${path.extname(file.originalname)}`);
+//   }
+// });
 
 // File filter function
 const fileFilter = (req, file, cb) => {
