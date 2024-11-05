@@ -9,13 +9,31 @@ const env = process.env.NODE_ENV || 'development';
 const config = require(__dirname + '/../config/config.json')[env];
 const db = {};
 
+// Create Sequelize instance
 let sequelize;
 if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
 } else {
-  sequelize = new Sequelize(config.database, config.username, config.password, config);
+  sequelize = new Sequelize(
+    config.database,
+    config.username,
+    config.password,
+    {
+      ...config,
+      host: config.host,
+      dialect: 'postgres',
+      logging: false,
+      pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000
+      }
+    }
+  );
 }
 
+// Load all models
 fs
   .readdirSync(__dirname)
   .filter(file => {
@@ -31,12 +49,14 @@ fs
     db[model.name] = model;
   });
 
+// Set up associations
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);
   }
 });
 
+// Add sequelize instance and Sequelize class to db object
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
