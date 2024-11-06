@@ -27,6 +27,39 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'unverified'
     },
     profile_image_url: DataTypes.STRING,
+    bio: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    phone: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    location: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    languages: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      defaultValue: [],
+      allowNull: true
+    },
+    occupation: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    education: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    pets_preference: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    profile_image_url: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     created_at: { 
       type: DataTypes.DATE, 
       defaultValue: DataTypes.NOW 

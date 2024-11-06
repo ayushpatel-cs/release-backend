@@ -6,6 +6,8 @@ const { uploadPropertyImages } = require('../utils/upload');
 
 // Create new property listing
 router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const {
       title,
@@ -14,41 +16,47 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
       start_date,
       end_date,
       min_price,
-      auction_end_date,
-      latitude,
-      longitude
     } = req.body;
 
-    // Create the property first
+    // Create the property
     const property = await Property.create({
-      user_id: req.user.id,
       title,
       description,
       address,
       start_date,
       end_date,
       min_price,
-      auction_end_date,
-      latitude,
-      longitude
-    });
+      user_id: req.user.id,
+      status: 'active'
+    }, { transaction });
 
-    // Handle uploaded images if any
+    // Handle image uploads if any
     if (req.files && req.files.length > 0) {
-      const uploadedImages = await Promise.all(
-        req.files.map((file, index) => 
-          PropertyImage.create({
-            property_id: property.id,
-            image_url: file.location,
-            order_index: index
-          })
-        )
-      );
-      property.dataValues.images = uploadedImages;
+      const imagePromises = req.files.map((file, index) => {
+        const imageUrl = `http://localhost:3001/uploads/${file.filename}`;
+        return PropertyImage.create({
+          property_id: property.id,
+          image_url: imageUrl,
+          order_index: index
+        }, { transaction });
+      });
+
+      await Promise.all(imagePromises);
     }
 
-    res.status(201).json(property);
+    await transaction.commit();
+
+    // Fetch the created property with its images
+    const propertyWithImages = await Property.findByPk(property.id, {
+      include: [{
+        model: PropertyImage,
+        as: 'images'
+      }]
+    });
+
+    res.status(201).json(propertyWithImages);
   } catch (error) {
+    await transaction.rollback();
     console.error('Property creation error:', error);
     res.status(500).json({ error: 'Error creating property listing' });
   }

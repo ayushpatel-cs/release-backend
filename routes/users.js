@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { User, Property, Bid, Review } = require('../models');
+const { User, Property, Bid, Review, PropertyImage } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadProfileImage } = require('../utils/upload');
+
+// Serve static files from the uploads directory
+const app = express();
+app.use('/uploads', express.static('uploads'));
 
 // Get user profile
 router.get('/:id', async (req, res) => {
@@ -28,33 +32,6 @@ router.get('/:id', async (req, res) => {
   } catch (error) {
     console.error('User fetch error:', error);
     res.status(500).json({ error: 'Error fetching user profile' });
-  }
-});
-
-// Update user profile
-router.put('/:id', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.id !== parseInt(req.params.id)) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    const { name, phone, bio } = req.body;
-    const user = await User.findByPk(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    await user.update({ name, phone_number: phone, bio });
-    
-    const updatedUser = await User.findByPk(req.params.id, {
-      attributes: { exclude: ['password_hash'] }
-    });
-
-    res.json(updatedUser);
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ error: 'Error updating profile' });
   }
 });
 
@@ -112,25 +89,71 @@ router.get('/:id/bids', authenticateToken, async (req, res) => {
   }
 });
 
-// Upload profile image
-router.post('/:id/profile-image', authenticateToken, uploadProfileImage, async (req, res) => {
+router.put('/profile/image', authenticateToken, uploadProfileImage, async (req, res) => {
   try {
-    if (req.user.id !== parseInt(req.params.id)) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
     if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
+      return res.status(400).json({ error: 'No image provided' });
     }
 
-    const user = await User.findByPk(req.params.id);
-    await user.update({ profile_image_url: req.file.location });
+    console.log('Uploaded file:', req.file);
+    
+    // Construct the URL that will be accessible from the frontend
+    const imageUrl = `http://localhost:3001/uploads/${req.file.filename}`;
+    console.log('Image URL:', imageUrl);
 
-    res.json({ profile_image_url: req.file.location });
+    const user = await User.findByPk(req.user.id);
+    await user.update({
+      profile_image_url: imageUrl
+    });
+
+    console.log('Updated user:', user.profile_image_url);
+    res.json({ profile_image_url: user.profile_image_url });
   } catch (error) {
-    console.error('Image upload error:', error);
-    res.status(500).json({ error: 'Error uploading profile image' });
+    console.error('Profile image update error:', error);
+    res.status(500).json({ error: 'Error updating profile image' });
   }
 });
+
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const {
+      name,
+      bio,
+      phone,
+      location,
+      languages,
+      occupation,
+      education,
+      pets_preference,
+      profile_image_url
+    } = req.body;
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await user.update({
+      name,
+      bio,
+      phone,
+      location,
+      languages,
+      occupation,
+      education,
+      pets_preference,
+      profile_image_url
+    });
+
+    const userData = user.toJSON();
+    delete userData.password_hash;
+    
+    res.json(userData);
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ error: 'Error updating profile' });
+  }
+});
+
 
 module.exports = router;

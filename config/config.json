@@ -12,7 +12,6 @@
         "rejectUnauthorized": false
       }
     },
-    "logging": true,
     "pool": {
       "max": 5,
       "min": 0,
