@@ -3,6 +3,7 @@ const router = express.Router();
 const { Property, User, Bid, PropertyImage, sequelize, Sequelize: { Op } } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadPropertyImages } = require('../utils/upload');
+const geocodingClient = require('../utils/geocoding');
 
 // Create new property listing
 router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
@@ -12,17 +13,30 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
     const {
       title,
       description,
-      address,
+      place_id,
+      address_details,
       start_date,
       end_date,
       min_price,
     } = req.body;
 
-    // Create the property
+    if (!place_id || !address_details) {
+      return res.status(400).json({ error: 'Valid address is required' });
+    }
+
+    // Create the property with validated address details
     const property = await Property.create({
       title,
       description,
-      address,
+      address_line1: address_details.address_line1,
+      address_line2: req.body.address_line2 || null,
+      city: address_details.city,
+      state: address_details.state,
+      zip_code: address_details.zip_code,
+      formatted_address: address_details.formatted_address,
+      latitude: address_details.latitude,
+      longitude: address_details.longitude,
+      place_id: place_id,
       start_date,
       end_date,
       min_price,
@@ -209,6 +223,38 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Property deletion error:', error);
     res.status(500).json({ error: 'Error deleting property' });
+  }
+});
+
+// Add new endpoint for address autocomplete
+router.get('/address-suggestions', async (req, res) => {
+  try {
+    const { input } = req.query;
+    if (!input) {
+      return res.status(400).json({ error: 'Input is required' });
+    }
+
+    const predictions = await geocodingClient.getPlacePredictions(input);
+    res.json(predictions);
+  } catch (error) {
+    console.error('Address suggestion error:', error);
+    res.status(500).json({ error: 'Error fetching address suggestions' });
+  }
+});
+
+// Add new endpoint for address validation
+router.get('/validate-address', async (req, res) => {
+  try {
+    const { placeId } = req.query;
+    if (!placeId) {
+      return res.status(400).json({ error: 'Place ID is required' });
+    }
+
+    const addressDetails = await geocodingClient.getPlaceDetails(placeId);
+    res.json(addressDetails);
+  } catch (error) {
+    console.error('Address validation error:', error);
+    res.status(500).json({ error: 'Error validating address' });
   }
 });
 

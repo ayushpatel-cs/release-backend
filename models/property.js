@@ -18,23 +18,39 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false 
     },
     description: DataTypes.TEXT,
-    address: { 
-      type: DataTypes.STRING, 
-      allowNull: false 
+    address_line1: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    address_line2: {
+      type: DataTypes.STRING
+    },
+    city: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    state: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    zip_code: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    formatted_address: {
+      type: DataTypes.STRING,
+      allowNull: false
     },
     latitude: {
       type: DataTypes.DECIMAL(10, 8),
-      validate: {
-        min: -90,
-        max: 90
-      }
+      allowNull: false
     },
     longitude: {
       type: DataTypes.DECIMAL(11, 8),
-      validate: {
-        min: -180,
-        max: 180
-      }
+      allowNull: false
+    },
+    place_id: {
+      type: DataTypes.STRING // Google Places ID for future reference
     },
     start_date: { 
       type: DataTypes.DATE, 
