@@ -9,9 +9,12 @@ const validateBid = async (req, res, next) => {
     const { amount } = req.body;
     const property_id = req.params.id;
 
+    console.log(`Validating bid - Property ID: ${property_id}, Amount: ${amount}`);
+
     // Verify property exists and is active
     const property = await Property.findByPk(property_id);
     if (!property || property.status !== 'active') {
+      console.log('Validation Failed: Invalid property or auction ended');
       return res.status(400).json({ error: 'Invalid property or auction ended' });
     }
 
@@ -23,14 +26,9 @@ const validateBid = async (req, res, next) => {
 
     // Validate bid amount
     if (!amount || amount < property.min_price) {
+      console.log(`Validation Failed: Bid amount ${amount} is less than minimum required ${property.min_price}`);
       return res.status(400).json({ 
         error: `Bid must be at least $${property.min_price}` 
-      });
-    }
-
-    if (highestBid && amount <= highestBid.amount) {
-      return res.status(400).json({ 
-        error: `Bid must be higher than current highest bid: $${highestBid.amount}` 
       });
     }
 
@@ -42,6 +40,7 @@ const validateBid = async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error('Validation Middleware Error:', error);
     next(error);
   }
 };
@@ -51,6 +50,12 @@ router.post('/properties/:id/bids', authenticateToken, validateBid, async (req, 
   try {
     const { amount } = req.body;
     const property_id = req.params.id;
+
+    console.log('Received bid:', { 
+      amount, 
+      property_id, 
+      user_id: req.user.id 
+    });
 
     // Check if user already has an active bid
     const existingBid = await Bid.findOne({
@@ -82,14 +87,6 @@ router.post('/properties/:id/bids', authenticateToken, validateBid, async (req, 
           model: User,
           as: 'bidder',
           attributes: ['id', 'name', 'profile_image_url']
-        },
-        {
-          model: Property,
-          include: [{
-            model: PropertyImage,
-            as: 'images',
-            limit: 1
-          }]
         }
       ]
     });
