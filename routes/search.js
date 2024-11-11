@@ -6,54 +6,33 @@ const geocodingClient = require('../utils/geocoding');
 router.get('/', async (req, res) => {
   try {
     const {
-      q,
+      latitude,
+      longitude,
+      radius = 10,
       min_price,
       max_price,
-      location,
       bedrooms,
       bathrooms,
-      type,
-      radius = 10 // Default radius in kilometers
+      type
     } = req.query;
 
     const whereClause = {
       status: 'active'
     };
 
-    if (q) {
-      whereClause[Op.or] = [
-        { title: { [Op.iLike]: `%${q}%` } },
-        { description: { [Op.iLike]: `%${q}%` } }
-      ];
+    if (latitude && longitude) {
+      whereClause[Op.and] = sequelize.literal(
+        `ST_DWithin(
+          ST_MakePoint(longitude, latitude)::geography,
+          ST_MakePoint(${longitude}, ${latitude})::geography,
+          ${radius * 1609.34}
+        )`
+      );
     }
 
-    if (location) {
-      try {
-        const predictions = await geocodingClient.getPlacePredictions(location);
-        if (predictions.length > 0) {
-          const locationDetails = await geocodingClient.getPlaceDetails(predictions[0].place_id);
-          
-          whereClause[Op.and] = sequelize.literal(
-            `ST_DWithin(
-              ST_MakePoint(longitude, latitude)::geography,
-              ST_MakePoint(${locationDetails.longitude}, ${locationDetails.latitude})::geography,
-              ${radius * 1000}
-            )`
-          );
-        }
-      } catch (error) {
-        console.error('Location search error:', error);
-        whereClause[Op.or] = [
-          { city: { [Op.iLike]: `%${location}%` } },
-          { state: { [Op.iLike]: `%${location}%` } },
-          { formatted_address: { [Op.iLike]: `%${location}%` } }
-        ];
-      }
-    }
-
+    // Add other filters...
     if (min_price) whereClause.min_price = { [Op.gte]: min_price };
-    if (max_price) whereClause.min_price = { [Op.lte]: max_price };
-
+    if (max_price) whereClause.max_price = { [Op.lte]: max_price };
     if (bedrooms) whereClause.bedrooms = { [Op.gte]: bedrooms };
     if (bathrooms) whereClause.bathrooms = { [Op.gte]: bathrooms };
     if (type) whereClause.type = type;

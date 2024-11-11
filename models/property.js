@@ -43,11 +43,19 @@ module.exports = (sequelize, DataTypes) => {
     },
     latitude: {
       type: DataTypes.DECIMAL(10, 8),
-      allowNull: false
+      allowNull: false,
+      validate: {
+        min: -90,
+        max: 90
+      }
     },
     longitude: {
       type: DataTypes.DECIMAL(11, 8),
-      allowNull: false
+      allowNull: false,
+      validate: {
+        min: -180,
+        max: 180
+      }
     },
     place_id: {
       type: DataTypes.STRING // Google Places ID for future reference
