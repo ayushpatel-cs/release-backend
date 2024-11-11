@@ -10,47 +10,56 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
+    // Log the entire request body
+    console.log('Received property data:', req.body);
+    console.log('Files:', req.files);
+
     const {
       title,
       description,
       place_id,
-      address_details,
+      address_line1,
+      city,
+      state,
+      zip_code,
+      formatted_address,
+      latitude,
+      longitude,
+      min_price,
       start_date,
       end_date,
-      min_price,
     } = req.body;
 
-    if (!place_id || !address_details) {
-      return res.status(400).json({ error: 'Valid address is required' });
+    // Validate required fields
+    if (!address_line1 || !city || !state || !zip_code || !latitude || !longitude) {
+      return res.status(400).json({ error: 'All address fields are required' });
     }
 
-    // Create the property with validated address details
+    // Create the property
     const property = await Property.create({
+      user_id: req.user.id,
       title,
       description,
-      address_line1: address_details.address_line1,
-      address_line2: req.body.address_line2 || null,
-      city: address_details.city,
-      state: address_details.state,
-      zip_code: address_details.zip_code,
-      formatted_address: address_details.formatted_address,
-      latitude: address_details.latitude,
-      longitude: address_details.longitude,
-      place_id: place_id,
+      address_line1,
+      city,
+      state,
+      zip_code,
+      formatted_address,
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      place_id,
       start_date,
       end_date,
-      min_price,
-      user_id: req.user.id,
+      min_price: parseFloat(min_price),
       status: 'active'
     }, { transaction });
 
     // Handle image uploads if any
     if (req.files && req.files.length > 0) {
       const imagePromises = req.files.map((file, index) => {
-        const imageUrl = `http://localhost:3001/uploads/${file.filename}`;
         return PropertyImage.create({
           property_id: property.id,
-          image_url: imageUrl,
+          image_url: file.location || `http://localhost:3001/uploads/${file.filename}`,
           order_index: index
         }, { transaction });
       });
@@ -72,7 +81,7 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
   } catch (error) {
     await transaction.rollback();
     console.error('Property creation error:', error);
-    res.status(500).json({ error: 'Error creating property listing' });
+    res.status(500).json({ error: 'Error creating property listing: ' + error.message });
   }
 });
 
@@ -255,6 +264,34 @@ router.get('/validate-address', async (req, res) => {
   } catch (error) {
     console.error('Address validation error:', error);
     res.status(500).json({ error: 'Error validating address' });
+  }
+});
+
+// Add new endpoint for search by geographic area
+router.get('/search', async (req, res) => {
+  try {
+    const { latitude, longitude, radius = 10 } = req.query;
+    
+    // Convert radius from miles to meters (1 mile = 1609.34 meters)
+    const radiusInMeters = parseFloat(radius) * 1609.34;
+    
+    // Use Sequelize's geometry functions
+    const listings = await Property.findAll({
+      where: sequelize.literal(`
+        ST_DWithin(
+          ST_MakePoint(longitude, latitude)::geography,
+          ST_MakePoint(${longitude}, ${latitude})::geography,
+          ${radiusInMeters}
+        )
+      `),
+      // Include other necessary fields and conditions
+      ...otherQueryParams
+    });
+
+    res.json({ properties: listings });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Error searching properties' });
   }
 });
 
