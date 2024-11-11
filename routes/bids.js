@@ -28,12 +28,6 @@ const validateBid = async (req, res, next) => {
       });
     }
 
-    if (highestBid && amount <= highestBid.amount) {
-      return res.status(400).json({ 
-        error: `Bid must be higher than current highest bid: $${highestBid.amount}` 
-      });
-    }
-
     // Add validated data to request
     req.validatedBid = {
       property,
