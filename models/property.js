@@ -80,6 +80,21 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'active'
     },
     auction_end_date: DataTypes.DATE,
+    bedrooms: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    bathrooms: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    type: {
+      type: DataTypes.STRING,
+    },
+    amenities: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      defaultValue: []
+    },
     created_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW

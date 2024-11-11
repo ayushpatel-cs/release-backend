@@ -3,8 +3,8 @@ const router = express.Router();
 const { Bid, Property, User, Sequelize: { Op } } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 
-// Place new bid
-router.post('/properties/:id/bids', authenticateToken, async (req, res) => {
+// Add validation middleware
+const validateBid = async (req, res, next) => {
   try {
     const { amount } = req.body;
     const property_id = req.params.id;
@@ -15,28 +15,86 @@ router.post('/properties/:id/bids', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid property or auction ended' });
     }
 
-    // Create bid
+    // Get highest current bid
+    const highestBid = await Bid.findOne({
+      where: { property_id, status: 'active' },
+      order: [['amount', 'DESC']]
+    });
+
+    // Validate bid amount
+    if (!amount || amount < property.min_price) {
+      return res.status(400).json({ 
+        error: `Bid must be at least $${property.min_price}` 
+      });
+    }
+
+    if (highestBid && amount <= highestBid.amount) {
+      return res.status(400).json({ 
+        error: `Bid must be higher than current highest bid: $${highestBid.amount}` 
+      });
+    }
+
+    // Add validated data to request
+    req.validatedBid = {
+      property,
+      highestBid
+    };
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Place new bid
+router.post('/properties/:id/bids', authenticateToken, validateBid, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const property_id = req.params.id;
+
+    // Check if user already has an active bid
+    const existingBid = await Bid.findOne({
+      where: {
+        property_id,
+        bidder_id: req.user.id,
+        status: 'active'
+      }
+    });
+
+    if (existingBid) {
+      // Update existing bid
+      await existingBid.update({ amount });
+      return res.status(200).json(existingBid);
+    }
+
+    // Create new bid
     const bid = await Bid.create({
       property_id,
       bidder_id: req.user.id,
-      amount
+      amount,
+      status: 'active'
     });
 
-    // Get updated order book
-    const orderBook = await Bid.findAll({
-      where: { property_id, status: 'active' },
-      order: [['amount', 'DESC']],
-      include: [{
-        model: User,
-        as: 'bidder',
-        attributes: ['id', 'name']
-      }]
+    // Include bidder information in response
+    const bidWithDetails = await Bid.findByPk(bid.id, {
+      include: [
+        {
+          model: User,
+          as: 'bidder',
+          attributes: ['id', 'name', 'profile_image_url']
+        },
+        {
+          model: Property,
+          include: [{
+            model: PropertyImage,
+            as: 'images',
+            limit: 1
+          }]
+        }
+      ]
     });
 
-    res.status(201).json({
-      bid,
-      order_book: orderBook
-    });
+    res.status(201).json(bidWithDetails);
   } catch (error) {
     console.error('Bid creation error:', error);
     res.status(500).json({ error: 'Error placing bid' });
