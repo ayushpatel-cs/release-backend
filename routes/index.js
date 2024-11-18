@@ -9,6 +9,7 @@ const bidRoutes = require('./bids');
 const userRoutes = require('./users');
 const searchRoutes = require('./search');
 const uploadRoutes = require('./uploads');
+const reviewRoutes = require('./reviews');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -17,5 +18,6 @@ router.use('/bids', authenticateToken, bidRoutes);
 router.use('/users', userRoutes);
 router.use('/search', searchRoutes);
 router.use('/uploads', authenticateToken, uploadRoutes);
+router.use('/reviews', reviewRoutes);
 
 module.exports = router;
