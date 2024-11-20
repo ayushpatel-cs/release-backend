@@ -13,13 +13,34 @@ router.get('/', async (req, res) => {
       max_price,
       bedrooms,
       bathrooms,
-      type
+      type,
+      start_date: startDateQuery,
+      end_date: endDateQuery
     } = req.query;
 
     const whereClause = {
       status: 'active'
     };
 
+    // Parse dates
+    const start_date = startDateQuery ? new Date(startDateQuery) : null;
+    const end_date = endDateQuery ? new Date(endDateQuery) : null;
+
+    // Validate dates
+    if (start_date && isNaN(start_date)) {
+      return res.status(400).json({ error: 'Invalid start date format' });
+    }
+    if (end_date && isNaN(end_date)) {
+      return res.status(400).json({ error: 'Invalid end date format' });
+    }
+
+    // Add date filters to where clause
+    if (start_date && end_date) {
+      whereClause.start_date = { [Op.lte]: start_date };
+      whereClause.end_date = { [Op.gte]: end_date };
+    }
+
+    // Location filtering
     if (latitude && longitude) {
       whereClause[Op.and] = sequelize.literal(
         `ST_DWithin(
@@ -30,11 +51,11 @@ router.get('/', async (req, res) => {
       );
     }
 
-    // Add other filters...
-    if (min_price) whereClause.min_price = { [Op.gte]: min_price };
-    if (max_price) whereClause.max_price = { [Op.lte]: max_price };
-    if (bedrooms) whereClause.bedrooms = { [Op.gte]: bedrooms };
-    if (bathrooms) whereClause.bathrooms = { [Op.gte]: bathrooms };
+    // Other filters
+    if (min_price) whereClause.min_price = { [Op.gte]: parseFloat(min_price) };
+    if (max_price) whereClause.min_price = { [Op.lte]: parseFloat(max_price) };
+    if (bedrooms) whereClause.bedrooms = { [Op.gte]: parseInt(bedrooms) };
+    if (bathrooms) whereClause.bathrooms = { [Op.gte]: parseInt(bathrooms) };
     if (type) whereClause.type = type;
 
     const properties = await Property.findAll({
@@ -64,5 +85,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Error performing search' });
   }
 });
+
 
 module.exports = router;

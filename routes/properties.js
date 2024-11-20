@@ -48,8 +48,8 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude),
       place_id,
-      start_date,
-      end_date,
+      start_date: new Date(start_date),
+      end_date: new Date(end_date),
       min_price: parseFloat(min_price),
       status: 'active'
     }, { transaction });
@@ -57,6 +57,8 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
     // Handle image uploads if any
     if (req.files && req.files.length > 0) {
       const imagePromises = req.files.map((file, index) => {
+        console.log("FILENAME: " , file.filename);
+
         return PropertyImage.create({
           property_id: property.id,
           image_url: file.location || `http://localhost:3001/uploads/${file.filename}`,
@@ -93,15 +95,18 @@ router.get('/', async (req, res) => {
       limit = 10,
       min_price,
       max_price,
-      start_date,
-      end_date,
+      start_date: startDateQuery,
+      end_date: endDateQuery,
       latitude,
       longitude,
       radius
     } = req.query;
 
     const offset = (page - 1) * limit;
-    
+
+    const start_date = startDateQuery ? new Date(startDateQuery) : null;
+    const end_date = endDateQuery ? new Date(endDateQuery) : null;
+
     // Build where clause based on filters
     const whereClause = {
       status: 'active'
@@ -109,8 +114,11 @@ router.get('/', async (req, res) => {
 
     if (min_price) whereClause.min_price = { [Op.gte]: min_price };
     if (max_price) whereClause.min_price = { [Op.lte]: max_price };
-    if (start_date) whereClause.start_date = { [Op.gte]: start_date };
-    if (end_date) whereClause.end_date = { [Op.lte]: end_date };
+    
+    if (start_date && end_date) {
+      whereClause.start_date = { [Op.lte]: end_date };
+      whereClause.end_date = { [Op.gte]: start_date };
+    }
 
     // If location filtering is requested
     if (latitude && longitude && radius) {
