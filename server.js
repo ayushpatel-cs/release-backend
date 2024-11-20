@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors');
 const morgan = require('morgan');
 const { Sequelize } = require('sequelize');
 const db = require('./models');
@@ -15,19 +14,18 @@ const app = express();
 
 // Middleware
 app.use(morgan('dev'));
-app.use(cors({
-  origin: [
-    'http://releasesubleasing.live',
-    'https://releasesubleasing.live',
-    'http://www.releasesubleasing.live',
-    'https://www.releasesubleasing.live',
-     process.env.FRONTEND_URL || 'http://localhost:3000'
-  ],
-  credentials: true
-}));
 app.use(cookieParser());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// Increase payload size limits for file uploads
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+// Configure file upload middleware
+app.use(fileUpload({
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
+}));
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
