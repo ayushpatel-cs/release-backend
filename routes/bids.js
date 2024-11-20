@@ -53,7 +53,7 @@ const validateBid = async (req, res, next) => {
 // Place new bid
 router.post('/properties/:id/bids', authenticateToken, validateBid, async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount, start_date, end_date } = req.body;
     const property_id = req.params.id;
 
     console.log('Received bid:', { 
@@ -74,13 +74,15 @@ router.post('/properties/:id/bids', authenticateToken, validateBid, async (req, 
     let bid;
     if (existingBid) {
       // Update existing bid
-      bid = await existingBid.update({ amount });
+      bid = await existingBid.update({ amount, start_date, end_date });
     } else {
       // Create new bid
       bid = await Bid.create({
         property_id,
         bidder_id: req.user.id,
         amount,
+        start_date,
+        end_date,
         status: 'active'
       });
     }
