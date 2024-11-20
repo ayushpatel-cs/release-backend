@@ -311,7 +311,7 @@ router.get('/:id', async (req, res) => {
             {
               model: User,
               as: 'bidder',
-              attributes: ['id', 'name', 'profile_image_url']
+              attributes: ['id', 'name', 'profile_image_url', 'email']
             }
           ]
         }
