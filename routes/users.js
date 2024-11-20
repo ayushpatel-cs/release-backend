@@ -4,10 +4,6 @@ const { User, Property, Bid, Review, PropertyImage } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadProfileImage } = require('../utils/upload');
 
-// Serve static files from the uploads directory
-const app = express();
-app.use('/uploads', express.static('uploads'));
-
 // Get user profile
 router.get('/:id', async (req, res) => {
   try {
@@ -106,8 +102,8 @@ router.put('/profile/image', authenticateToken, uploadProfileImage, async (req, 
 
     console.log('Uploaded file:', req.file);
     
-    // Construct the URL that will be accessible from the frontend
-    const imageUrl = `http://localhost:3001/uploads/${req.file.filename}`;
+    // Construct the URL using BACKEND_URL from environment variables
+    const imageUrl = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
     console.log('Image URL:', imageUrl);
 
     const user = await User.findByPk(req.user.id);

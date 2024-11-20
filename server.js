@@ -8,7 +8,6 @@ const db = require('./models');
 const routes = require('./routes');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const fileUpload = require('express-fileupload');
 
 // Initialize Express
 const app = express();
@@ -23,14 +22,33 @@ app.use(cors({
     'https://www.releasesubleasing.live',
      process.env.FRONTEND_URL || 'http://localhost:3000'
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Cache-Control',
+    'Pragma',
+    'Expires',
+    'Accept'
+  ]
 }));
-app.use(cookieParser());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(cookieParser());
+
+// Increase payload size limits for file uploads
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+// Use absolute path for uploads directory
+const uploadsPath = '/var/www/uploads';
+app.use('/uploads', express.static(uploadsPath, {
+  setHeaders: (res, path) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
