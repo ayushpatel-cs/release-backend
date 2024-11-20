@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { Property, PropertyImage, User, sequelize, Sequelize: { Op } } = require('../models');
-const geocodingClient = require('../utils/geocoding');
 
 router.get('/', async (req, res) => {
   try {
@@ -15,7 +14,8 @@ router.get('/', async (req, res) => {
       bathrooms,
       type,
       start_date: startDateQuery,
-      end_date: endDateQuery
+      end_date: endDateQuery,
+      amenities // Added amenities filter
     } = req.query;
 
     const whereClause = {
@@ -30,7 +30,6 @@ router.get('/', async (req, res) => {
     const start_date = startDateQuery ? new Date(startDateQuery) : null;
     const end_date = endDateQuery ? new Date(endDateQuery) : null;
 
-    // Validate dates
     if (start_date && isNaN(start_date)) {
       return res.status(400).json({ error: 'Invalid start date format' });
     }
@@ -38,7 +37,6 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid end date format' });
     }
 
-    // Add date filters to where clause
     if (start_date && end_date) {
       whereClause.start_date = { [Op.lte]: start_date };
       whereClause.end_date = { [Op.gte]: end_date };
@@ -46,13 +44,23 @@ router.get('/', async (req, res) => {
 
     // Location filtering
     if (latitude && longitude) {
-      whereClause[Op.and] = sequelize.literal(
-        `ST_DWithin(
-          ST_MakePoint(longitude, latitude)::geography,
-          ST_MakePoint(${longitude}, ${latitude})::geography,
-          ${radius * 1609.34}
-        )`
-      );
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        whereClause[Op.and] = [
+          ...(whereClause[Op.and] || []),
+          sequelize.literal(
+            `ST_DWithin(
+              ST_MakePoint(longitude, latitude)::geography,
+              ST_MakePoint(${lng}, ${lat})::geography,
+              ${radius * 1609.34}
+            )`
+          )
+        ];
+      } else {
+        return res.status(400).json({ error: 'Invalid latitude or longitude' });
+      }
     }
 
     // Other filters
@@ -61,6 +69,18 @@ router.get('/', async (req, res) => {
     if (bedrooms) whereClause.bedrooms = { [Op.gte]: parseInt(bedrooms) };
     if (bathrooms) whereClause.bathrooms = { [Op.gte]: parseInt(bathrooms) };
     if (type) whereClause.type = type;
+
+    // Amenities filtering
+    const amenitiesArray = Array.isArray(amenities)
+      ? amenities
+      : amenities
+      ? [amenities]
+      : [];
+    if (amenitiesArray.length > 0) {
+      whereClause.amenities = { [Op.contains]: amenitiesArray };
+    }
+
+    console.log('Constructed whereClause:', whereClause);
 
     const properties = await Property.findAll({
       where: whereClause,
@@ -89,6 +109,5 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Error performing search' });
   }
 });
-
 
 module.exports = router;
