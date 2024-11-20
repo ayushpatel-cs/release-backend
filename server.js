@@ -16,7 +16,7 @@ const app = express();
 // Middleware
 app.use(morgan('dev'));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: ['https://releasesubleasing.live', 'https://www.releasesubleasing.live', trueprocess.env.FRONTEND_URL || 'http://localhost:3000'], 
   credentials: true
 }));
 app.use(cookieParser());
