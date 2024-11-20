@@ -19,7 +19,11 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     const whereClause = {
-      status: 'active'
+      status: 'active',
+      [Op.or]: [
+        { auction_end_date: { [Op.gt]: new Date() } },
+        { auction_end_date: null }
+      ]
     };
 
     // Parse dates
