@@ -61,7 +61,16 @@ router.get('/:id/properties', async (req, res) => {
 // Get user's bid history
 router.get('/:id/bids', authenticateToken, async (req, res) => {
   try {
+    // Add debug logging
+    console.log('Token user:', req.user);
+    console.log('Requested user ID:', req.params.id);
+    console.log('Token user ID type:', typeof req.user.id);
+    console.log('Params ID type:', typeof req.params.id);
+    
     if (req.user.id !== parseInt(req.params.id)) {
+      console.log('Authorization failed:');
+      console.log('Token user ID:', req.user.id);
+      console.log('Requested user ID:', parseInt(req.params.id));
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -154,6 +163,5 @@ router.put('/profile', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Error updating profile' });
   }
 });
-
 
 module.exports = router;
