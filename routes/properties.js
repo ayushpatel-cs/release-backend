@@ -93,6 +93,123 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
   }
 });
 
+// Update property listing with images
+router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const property = await Property.findByPk(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    if (property.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Validate required fields (if updating them)
+    const {
+      title,
+      description,
+      address_line1,
+      city,
+      state,
+      zip_code,
+      latitude,
+      longitude,
+      min_price
+    } = req.body;
+
+    if (
+      (address_line1 || city || state || zip_code || latitude || longitude) &&
+      (!address_line1 || !city || !state || !zip_code || !latitude || !longitude)
+    ) {
+      return res
+        .status(400)
+        .json({ error: 'All address fields are required for an update' });
+    }
+
+    // Update basic property details
+    await property.update(
+      {
+        title,
+        description,
+        address_line1,
+        city,
+        state,
+        zip_code,
+        latitude: latitude ? parseFloat(latitude) : property.latitude,
+        longitude: longitude ? parseFloat(longitude) : property.longitude,
+        min_price: min_price ? parseFloat(min_price) : property.min_price
+      },
+      { transaction }
+    );
+
+    // Handle new images (if uploaded)
+    if (req.files && req.files.length > 0) {
+      // Remove old images if necessary
+      await PropertyImage.destroy({ where: { property_id: property.id }, transaction });
+
+      const imagePromises = req.files.map((file, index) => {
+        return PropertyImage.create(
+          {
+            property_id: property.id,
+            image_url: file.location || `http://localhost:3001/uploads/${file.filename}`,
+            order_index: index
+          },
+          { transaction }
+        );
+      });
+
+      await Promise.all(imagePromises);
+    }
+
+    await transaction.commit();
+
+    // Fetch updated property with its images
+    const updatedProperty = await Property.findByPk(property.id, {
+      include: [{ model: PropertyImage, as: 'images' }]
+    });
+
+    res.json(updatedProperty);
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Property update error:', error);
+    res.status(500).json({ error: 'Error updating property: ' + error.message });
+  }
+});
+
+// Delete property listing
+router.delete('/:id', authenticateToken, async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const property = await Property.findByPk(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    if (property.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Delete associated images first
+    await PropertyImage.destroy({ where: { property_id: property.id }, transaction });
+
+    // Delete the property itself
+    await property.destroy({ transaction });
+
+    await transaction.commit();
+    res.json({ message: 'Property deleted successfully' });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Property deletion error:', error);
+    res.status(500).json({ error: 'Error deleting property: ' + error.message });
+  }
+});
+
 // Get property listings with filters
 router.get('/', async (req, res) => {
   try {
