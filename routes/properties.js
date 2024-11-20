@@ -155,6 +155,7 @@ router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => 
       { transaction }
     );
 
+      
     // Handle new images (if uploaded)
     if (req.files && req.files.length > 0) {
       await PropertyImage.destroy({ where: { property_id: property.id }, transaction });
