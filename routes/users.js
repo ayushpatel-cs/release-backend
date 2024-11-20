@@ -4,10 +4,6 @@ const { User, Property, Bid, Review, PropertyImage } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { uploadProfileImage } = require('../utils/upload');
 
-// Serve static files from the uploads directory
-const app = express();
-app.use('/uploads', express.static('uploads'));
-
 // Get user profile
 router.get('/:id', async (req, res) => {
   try {
