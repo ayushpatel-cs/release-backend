@@ -77,7 +77,8 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
 
         return PropertyImage.create({
           property_id: property.id,
-          image_url: `${process.env.BACKEND_URL}/uploads/${file.filename}`,
+          image_url: `http://localhost:3001/uploads/${file.filename}`,
+          // image_url: `${process.env.BACKEND_URL}/uploads/${file.filename}`,
           order_index: index
         }, { transaction });
       });
@@ -162,7 +163,8 @@ router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => 
         PropertyImage.create(
           {
             property_id: property.id,
-            image_url: `${process.env.BACKEND_URL}/uploads/${file.filename}`,
+            image_url: `http://localhost:3001/uploads/${file.filename}`,
+            // image_url: `${process.env.BACKEND_URL}/uploads/${file.filename}`,
             order_index: index
           },
           { transaction }
