@@ -29,14 +29,6 @@ const validateBid = async (req, res, next) => {
       order: [['amount', 'DESC']]
     });
 
-    // Validate bid amount
-    if (!amount || amount < property.min_price) {
-      console.log(`Validation Failed: Bid amount ${amount} is less than minimum required ${property.min_price}`);
-      return res.status(400).json({ 
-        error: `Bid must be at least $${property.min_price}` 
-      });
-    }
-
     // Add validated data to request
     req.validatedBid = {
       property,
