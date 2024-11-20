@@ -28,11 +28,16 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
       min_price,
       start_date,
       end_date,
+      auction_end_date,
     } = req.body;
 
     // Validate required fields
     if (!address_line1 || !city || !state || !zip_code || !latitude || !longitude) {
       return res.status(400).json({ error: 'All address fields are required' });
+    }
+
+    if (!auction_end_date) {
+      return res.status(400).json({ error: 'Auction end date is required' });
     }
 
     // Create the property
@@ -50,6 +55,7 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
       place_id,
       start_date,
       end_date,
+      auction_end_date,
       min_price: parseFloat(min_price),
       status: 'active'
     }, { transaction });
@@ -104,7 +110,12 @@ router.get('/', async (req, res) => {
     
     // Build where clause based on filters
     const whereClause = {
-      status: 'active'
+      status: 'active',
+      // Filter out expired auctions
+      [Op.or]: [
+        { auction_end_date: { [Op.gt]: new Date() } },
+        { auction_end_date: null }
+      ]
     };
 
     if (min_price) whereClause.min_price = { [Op.gte]: min_price };
