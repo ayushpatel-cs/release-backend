@@ -8,9 +8,8 @@ const geocodingClient = require('../utils/geocoding');
 // Create new property listing
 router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
-    // Log the entire request body
     console.log('Received property data:', req.body);
     console.log('Files:', req.files);
 
@@ -29,6 +28,10 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
       start_date,
       end_date,
       auction_end_date,
+      bedrooms,
+      bathrooms,
+      type,
+      amenities // New field
     } = req.body;
 
     // Validate required fields
@@ -41,24 +44,31 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
     }
 
     // Create the property
-    const property = await Property.create({
-      user_id: req.user.id,
-      title,
-      description,
-      address_line1,
-      city,
-      state,
-      zip_code,
-      formatted_address,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      place_id,
-      auction_end_date,
-      start_date: new Date(start_date),
-      end_date: new Date(end_date),
-      min_price: parseFloat(min_price),
-      status: 'active'
-    }, { transaction });
+    const property = await Property.create(
+      {
+        user_id: req.user.id,
+        title,
+        description,
+        address_line1,
+        city,
+        state,
+        zip_code,
+        formatted_address,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        place_id,
+        auction_end_date,
+        start_date: new Date(start_date),
+        end_date: new Date(end_date),
+        min_price: parseFloat(min_price),
+        bedrooms: parseInt(bedrooms, 10) || 0, // Handle optional integer fields
+        bathrooms: parseInt(bathrooms, 10) || 0,
+        type,
+        amenities: amenities ? JSON.parse(amenities) : [], // Parse JSON string for amenities
+        status: 'active'
+      },
+      { transaction }
+    );
 
     // Handle image uploads if any
     if (req.files && req.files.length > 0) {
@@ -79,10 +89,7 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
 
     // Fetch the created property with its images
     const propertyWithImages = await Property.findByPk(property.id, {
-      include: [{
-        model: PropertyImage,
-        as: 'images'
-      }]
+      include: [{ model: PropertyImage, as: 'images' }]
     });
 
     res.status(201).json(propertyWithImages);
@@ -93,7 +100,8 @@ router.post('/', authenticateToken, uploadPropertyImages, async (req, res) => {
   }
 });
 
-// Update property listing with images
+
+// Update property listing
 router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => {
   const transaction = await sequelize.transaction();
 
@@ -108,7 +116,6 @@ router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Validate required fields (if updating them)
     const {
       title,
       description,
@@ -118,19 +125,15 @@ router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => 
       zip_code,
       latitude,
       longitude,
-      min_price
+      min_price,
+      auction_end_date,
+      bedrooms,
+      bathrooms,
+      type,
+      amenities,
     } = req.body;
 
-    if (
-      (address_line1 || city || state || zip_code || latitude || longitude) &&
-      (!address_line1 || !city || !state || !zip_code || !latitude || !longitude)
-    ) {
-      return res
-        .status(400)
-        .json({ error: 'All address fields are required for an update' });
-    }
-
-    // Update basic property details
+    // Update the property
     await property.update(
       {
         title,
@@ -141,26 +144,30 @@ router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => 
         zip_code,
         latitude: latitude ? parseFloat(latitude) : property.latitude,
         longitude: longitude ? parseFloat(longitude) : property.longitude,
-        min_price: min_price ? parseFloat(min_price) : property.min_price
+        min_price: min_price ? parseFloat(min_price) : property.min_price,
+        auction_end_date: auction_end_date ? new Date(auction_end_date) : property.auction_end_date,
+        bedrooms: bedrooms ? parseInt(bedrooms, 10) : property.bedrooms,
+        bathrooms: bathrooms ? parseInt(bathrooms, 10) : property.bathrooms,
+        type: type || property.type,
+        amenities: amenities ? JSON.parse(amenities) : property.amenities,
       },
       { transaction }
     );
 
     // Handle new images (if uploaded)
     if (req.files && req.files.length > 0) {
-      // Remove old images if necessary
       await PropertyImage.destroy({ where: { property_id: property.id }, transaction });
 
-      const imagePromises = req.files.map((file, index) => {
-        return PropertyImage.create(
+      const imagePromises = req.files.map((file, index) =>
+        PropertyImage.create(
           {
             property_id: property.id,
             image_url: `${process.env.BACKEND_URL}/uploads/${file.filename}`,
             order_index: index
           },
           { transaction }
-        );
-      });
+        )
+      );
 
       await Promise.all(imagePromises);
     }
@@ -169,7 +176,7 @@ router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => 
 
     // Fetch updated property with its images
     const updatedProperty = await Property.findByPk(property.id, {
-      include: [{ model: PropertyImage, as: 'images' }]
+      include: [{ model: PropertyImage, as: 'images' }],
     });
 
     res.json(updatedProperty);
@@ -179,6 +186,8 @@ router.put('/:id', authenticateToken, uploadPropertyImages, async (req, res) => 
     res.status(500).json({ error: 'Error updating property: ' + error.message });
   }
 });
+
+
 
 // Delete property listing
 router.delete('/:id', authenticateToken, async (req, res) => {
