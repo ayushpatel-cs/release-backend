@@ -35,7 +35,15 @@ module.exports = (sequelize, DataTypes) => {
     created_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW
-    }
+    },
+    start_date: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    end_date: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
   }, {
     timestamps: true,
     createdAt: 'created_at',
