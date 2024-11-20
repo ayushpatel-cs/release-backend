@@ -106,8 +106,8 @@ router.put('/profile/image', authenticateToken, uploadProfileImage, async (req, 
 
     console.log('Uploaded file:', req.file);
     
-    // Construct the URL that will be accessible from the frontend
-    const imageUrl = `http://localhost:3001/uploads/${req.file.filename}`;
+    // Construct the URL using BACKEND_URL from environment variables
+    const imageUrl = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
     console.log('Image URL:', imageUrl);
 
     const user = await User.findByPk(req.user.id);
