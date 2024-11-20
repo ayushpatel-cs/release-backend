@@ -16,7 +16,7 @@ const s3 = new aws.S3();
 // Local storage configuration (fallback if S3 is not configured)
 const localStorageConfig = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/';
+    const uploadDir = '/var/www/uploads/';
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }

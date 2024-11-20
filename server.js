@@ -41,8 +41,9 @@ app.use(cookieParser());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-// Serve uploaded files - moved before routes to ensure proper handling
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+// Use absolute path for uploads directory
+const uploadsPath = '/var/www/uploads';
+app.use('/uploads', express.static(uploadsPath, {
   setHeaders: (res, path) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
