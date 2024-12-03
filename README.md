@@ -132,12 +132,19 @@ npx sequelize-cli migration:generate --name migration-name
 ```
 
 ## Project Structure
+```
 release-backend/
 ├── config/             # Database configuration
 ├── middleware/         # Express middleware
 │   └── auth.js         # Authentication middleware
 ├── models/             # Sequelize models
-├── routes/             # API routes
+├── routes/                # API routes
+│   ├── auth.js           # Authentication routes
+│   ├── properties.js     # Property routes
+│   ├── bids.js          # Bidding routes
+│   ├── users.js         # User routes
+│   ├── search.js        # Search routes
+│   └── uploads.js       # File upload routes
 ├── utils/              # Utility functions
 │   ├── auth.js         # Authentication utilities
 │   ├── upload.js       # File upload utilities
@@ -145,6 +152,7 @@ release-backend/
 ├── uploads/            # Local file uploads (temporary, should ideally be replaced with cloud storage like AWS S3)
 ├── .env                # Environment variables
 └── server.js           # Entry point
+```
 
 ## Error Handling
 
