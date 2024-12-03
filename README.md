@@ -1,12 +1,12 @@
 # ReLease Backend
 
-Backend server for the ReLease application - a platform for subleasing properties.
+Backend server for the ReLease application - a platform for subleasing properties with an open-auction-based system.
 
 ## Prerequisites
 
 - Node.js (v14 or higher)
 - PostgreSQL
-- AWS Account (for image uploads)
+- Google Maps API Key (for geocoding)
 
 ## Setup
 
@@ -28,25 +28,20 @@ DB_PASSWORD=your-db-password
 # JWT
 JWT_SECRET=your-secure-secret-key
 
-# AWS (required for image uploads)
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=your-bucket-name
-
 # App
 PORT=3001
 FRONTEND_URL=http://localhost:3000
 NODE_ENV=development
+BACKEND_URL=http://localhost:3001
+
+# Google Maps API
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 ```
 
 3. **Database Setup**
 ```bash
 # Run migrations
 npx sequelize-cli db:migrate
-
-# (Optional) Run seeders if you want sample data
-npx sequelize-cli db:seed:all
 ```
 
 ## Running the Server
@@ -67,27 +62,58 @@ npm start
 
 ### Authentication
 - `POST /api/auth/register` - Register new user
+  - Body: `{ email, password, name, phone }`
 - `POST /api/auth/login` - Login user
+  - Body: `{ email, password }`
 - `POST /api/auth/verify` - Verify email/phone
+  - Body: `{ type, code }`
+  - Protected: Requires authentication
 
 ### Properties
 - `GET /api/properties` - List properties
+  - Query params: `page`, `limit`, `search`, `minPrice`, `maxPrice`, `city`, `state`
 - `POST /api/properties` - Create property listing
+  - Body: Multipart form data with property details and images
+  - Protected: Requires authentication
 - `GET /api/properties/:id` - Get property details
 - `PUT /api/properties/:id` - Update property
+  - Body: Multipart form data with updated details
+  - Protected: Requires authentication
 - `DELETE /api/properties/:id` - Delete property
+  - Protected: Requires authentication
+- `GET /api/properties/address-suggestions` - Get address autocomplete suggestions
+  - Query params: `input`
+- `GET /api/properties/validate-address` - Validate address details
+  - Query params: `placeId`
 
 ### Users
 - `GET /api/users/:id` - Get user profile
-- `PUT /api/users/:id` - Update user profile
+- `PUT /api/users/profile` - Update user profile
+  - Protected: Requires authentication
+- `PUT /api/users/profile/image` - Update profile image
+  - Body: Multipart form data with image
+  - Protected: Requires authentication
+- `GET /api/users/:id/properties` - Get user's property listings
+- `GET /api/users/:id/bids` - Get user's bid history
+  - Protected: Requires authentication
 
 ### Bids
 - `GET /api/bids/properties/:id/bids` - Get property bids
+- `POST /api/bids/properties/:id/bids` - Place new bid
+  - Body: `{ amount, start_date, end_date }`
+  - Protected: Requires authentication
 - `POST /api/bids/properties/:id/select-winner` - Select winning bid
+  - Body: `{ bid_id }`
+  - Protected: Requires authentication
 
 ### Images
 - `POST /api/uploads/properties/:id/images` - Upload property images
+  - Body: Multipart form data with images
+  - Protected: Requires authentication
 - `PUT /api/uploads/properties/:id/images/reorder` - Reorder images
+  - Body: `{ image_orders: [{ id, order_index }] }`
+  - Protected: Requires authentication
+
 
 ## Development Commands
 
@@ -103,26 +129,39 @@ npx sequelize-cli db:migrate:undo
 
 # Create new migration
 npx sequelize-cli migration:generate --name migration-name
-
-# Run seeders
-npx sequelize-cli db:seed:all
-
-# Undo seeders
-npx sequelize-cli db:seed:undo:all
 ```
 
 ## Project Structure
-
-```
 release-backend/
 ├── config/             # Database configuration
 ├── middleware/         # Express middleware
-├── models/            # Sequelize models
-├── routes/            # API routes
-├── utils/             # Utility functions
-├── uploads/           # Local file uploads (temporary)
-├── .env               # Environment variables
-└── server.js          # Entry point
+│   └── auth.js         # Authentication middleware
+├── models/             # Sequelize models
+├── routes/             # API routes
+├── utils/              # Utility functions
+│   ├── auth.js         # Authentication utilities
+│   ├── upload.js       # File upload utilities
+│   └── geocoding.js    # Google Maps integration
+├── uploads/            # Local file uploads (temporary, should ideally be replaced with cloud storage like AWS S3)
+├── .env                # Environment variables
+└── server.js           # Entry point
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+- 200: Success
+- 201: Created
+- 400: Bad Request
+- 401: Unauthorized
+- 403: Forbidden
+- 404: Not Found
+- 500: Internal Server Error
+
+## Authentication
+
+The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
+```
+Authorization: Bearer <token>
 ```
 
 ## Testing API Endpoints
@@ -135,11 +174,5 @@ curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"password123"}'
 ```
-
-## Contributing
-
-1. Create a new branch
-2. Make your changes
-3. Submit a pull request
 
 ## License
